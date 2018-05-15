@@ -213,19 +213,20 @@ class BodyTextExtraction:
         best_score = float("-inf")
         best_node = None
         for node in tree.enumerate_dfs():
+
             if node.is_navigable_string():    continue
             if not node.is_content:           continue
             if not node.soup.name in ["div","p","article"]: continue
             score = node.density_sum
+
             if score > best_score:
                 best_node = node
                 best_score = score
 
         self.best_node = best_node
-        childs = best_node.soup.find_all(["p", "div"])
-        top_images = childs[0].find_all("img")
-        if top_images:
-            childs[0].decompose()
+        for img in best_node.soup.find_all('img'):
+            if len(img.parent.find_all(['p','div'])) == 1:
+                img.parent.decompose()
         self.threshold = Node.threshold
 
         return best_node.soup.text.strip()
