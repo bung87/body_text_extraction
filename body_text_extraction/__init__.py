@@ -12,6 +12,7 @@ import re
 from whatthelang import WhatTheLang
 wtl = WhatTheLang()
 MINIMAL_WORD_COUNT = 4
+FASTTEXT_CJKV = ["zh",'wuu','yue',"ko","ja","vi"]
 
 __all__ = ["BodyTextExtraction"]
 
@@ -226,7 +227,7 @@ def decode(soup,title_lang):
             if text2:
                 pre_text2 = pure_text(text2)
                 lang = predict_lang(pre_text2) or title_lang
-                if lang in ["zh","ko","ja","vi"]:
+                if lang in FASTTEXT_CJKV:
                     if len(pre_text2) > MINIMAL_WORD_COUNT:
                         s.append(text2)
                 else:
@@ -237,7 +238,7 @@ def decode(soup,title_lang):
             lang = predict_lang(pre_text) or title_lang
             con = False
             
-            if lang in ["zh","ko","ja","vi"]:
+            if lang in FASTTEXT_CJKV:
                 if len(pre_text) > MINIMAL_WORD_COUNT:
                     con = True
             else:
