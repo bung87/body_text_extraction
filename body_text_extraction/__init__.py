@@ -7,6 +7,7 @@ import urllib.request, urllib.error, urllib.parse
 import math
 import html5lib
 import sys
+import re
 
 __all__ = ["BodyTextExtraction"]
 
@@ -78,14 +79,14 @@ class Node:
 
         _merge_neighboring_navigablestrings(node)
         return node
-        return bs4.BeautifulSoup(str(node))
 
     def __init__(self,soup,children=[]):
         self.soup = soup
         self.children = list(children)
         self.parent=None
         self.is_content = False
-
+        self.composite_text_density = 0
+        self.density_sum = 0
         self.extract_features()
 
     def show(self,depth=0,filtered=True):
@@ -228,8 +229,10 @@ class BodyTextExtraction:
             if len(img.parent.find_all(['p','div'])) == 1:
                 img.parent.decompose()
         self.threshold = Node.threshold
-
-        return best_node.soup.text.strip()
+        text = best_node.soup.text.rstrip()
+        text = re.sub(r'\xa0','',text,flags=re.ASCII|re.M)
+        text = re.sub(r'^[\s\n]+','',text,flags=re.ASCII)
+        return text
 
 def get_unicode_content_from_url(url):
     response = urllib.request.urlopen(url)

@@ -21,11 +21,12 @@ setup(
         'Topic :: Text Processing :: Markup :: HTML'
     ],
     keywords='html content',
-    packages=find_packages(exclude=['bin','test']),
+    packages=find_packages(exclude=['bin','tests']),
     install_requires=[
         'beautifulsoup4==4.3.2',
         'html5lib==0.99999'
-        ]
+        ],
+    test_suite='tests.main_test.suite'
 
 )
 
