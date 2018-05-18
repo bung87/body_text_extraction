@@ -8,8 +8,9 @@ import math
 import html5lib
 import sys
 import re
-import langid
-
+# import langid
+from whatthelang import WhatTheLang
+wtl = WhatTheLang()
 __all__ = ["BodyTextExtraction"]
 
 class Node:
@@ -230,7 +231,9 @@ class BodyTextExtraction:
             if len(img.parent.find_all(['p','div'])) == 1:
                 img.parent.decompose()
         self.threshold = Node.threshold
-        soup = best_node.soup
+        
+        title_lang = wtl.predict_lang( re.sub(r'\W?\B\W?',"",soup.title.string.strip()) )
+
         def decode(soup,indent_level=2,encoding= bs4.DEFAULT_OUTPUT_ENCODING,formatter="minimal"):
             s = []
             pretty_print = True
@@ -238,22 +241,33 @@ class BodyTextExtraction:
                 text = None
                 if isinstance(c, bs4.NavigableString):
                     text = c.output_ready(formatter)
+                    text = re.sub(r'^\s+$','',text,flags=re.ASCII|re.M)
                 elif isinstance(c, bs4.Tag):
                     text2 = decode(c,indent_level, bs4.DEFAULT_OUTPUT_ENCODING,
                                     formatter)
-                    lang,_ = langid.classify(text2)
-                    if lang in ["zh","ko","ja","vi"]:
-                        s.append(text2)
-                    else:
-                        if len(text2.split()) > 5:
+                    if text2:
+                        pre_text2 = re.sub(r'\W?\B\W?',"",text2.strip())
+                        # lang,_ = langid.classify(pre_text2)
+
+                        lang = pre_text2 and wtl.predict_lang(pre_text2) # seconds faster than langid
+                        lang = lang if not lang == "CANT_PREDICT" else title_lang
+                        if lang in ["zh","ko","ja","vi"]:
                             s.append(text2)
-                if text  and indent_level and not soup.name == 'pre':
-                    lang,_ = langid.classify(text)
+                        else:
+                            if len(pre_text2.split()) > 5:
+                                s.append(text2)
+                if text and indent_level and not soup.name == 'pre':
+                    pre_text = re.sub(r'\W?\B\W?',"",text.strip())
+                    # lang,_ = langid.classify(pre_text)
+                    
+                    lang = pre_text and wtl.predict_lang(pre_text)
+                    lang = lang if not lang == "CANT_PREDICT" else title_lang
                     con = False
+                  
                     if lang in ["zh","ko","ja","vi"]:
                         con = True
                     else:
-                        if len(text.split()) > 5:
+                        if len(pre_text.split()) > 5:
                             con = True
                     if con:
                         text = re.sub(r'\xa0','',text,flags=re.ASCII|re.M)
