@@ -11,6 +11,8 @@ import re
 # import langid
 from whatthelang import WhatTheLang
 wtl = WhatTheLang()
+MINIMAL_WORD_COUNT = 4
+
 __all__ = ["BodyTextExtraction"]
 
 class Node:
@@ -202,6 +204,53 @@ class Node:
             cd = cd.parent
         return path
 
+def pure_text(s):
+    text = re.sub(r'\W?\B\W?',"",s.strip())
+    return text
+
+def predict_lang(s):
+    s2 = pure_text(s)
+    lang = s and wtl.predict_lang(s2) # seconds faster than langid
+    lang = lang if not lang == "CANT_PREDICT" else None
+
+def decode(soup,title_lang):
+    s = []
+
+    for c in soup:
+        text = None
+        if isinstance(c, bs4.NavigableString):
+            text = c.output_ready("minimal")
+            text = re.sub(r'^\s+$','',text,flags=re.ASCII|re.M)
+        elif isinstance(c, bs4.Tag):
+            text2 = decode(c,title_lang)
+            if text2:
+                pre_text2 = pure_text(text2)
+                lang = predict_lang(pre_text2) or title_lang
+                if lang in ["zh","ko","ja","vi"]:
+                    if len(pre_text2) > MINIMAL_WORD_COUNT:
+                        s.append(text2)
+                else:
+                    if len(pre_text2.split()) > MINIMAL_WORD_COUNT:
+                        s.append(text2)
+        if text and not soup.name == 'pre':
+            pre_text = pure_text(text)
+            lang = predict_lang(pre_text) or title_lang
+            con = False
+            
+            if lang in ["zh","ko","ja","vi"]:
+                if len(pre_text) > MINIMAL_WORD_COUNT:
+                    con = True
+            else:
+                if len(pre_text.split()) > MINIMAL_WORD_COUNT:
+                    con = True
+            if con:
+                text = re.sub(r'\xa0','',text,flags=re.ASCII|re.M)
+                s.append(text)
+                if not soup.name == 'pre':
+                    s.append("\n\n")
+    prettified_html = ''.join(s)
+    return prettified_html
+
 class BodyTextExtraction:
     def __init__(self):
         pass
@@ -232,51 +281,8 @@ class BodyTextExtraction:
                 img.parent.decompose()
         self.threshold = Node.threshold
         
-        title_lang = wtl.predict_lang( re.sub(r'\W?\B\W?',"",soup.title.string.strip()) )
-
-        def decode(soup,indent_level=2,encoding= bs4.DEFAULT_OUTPUT_ENCODING,formatter="minimal"):
-            s = []
-            pretty_print = True
-            for c in soup:
-                text = None
-                if isinstance(c, bs4.NavigableString):
-                    text = c.output_ready(formatter)
-                    text = re.sub(r'^\s+$','',text,flags=re.ASCII|re.M)
-                elif isinstance(c, bs4.Tag):
-                    text2 = decode(c,indent_level, bs4.DEFAULT_OUTPUT_ENCODING,
-                                    formatter)
-                    if text2:
-                        pre_text2 = re.sub(r'\W?\B\W?',"",text2.strip())
-                        # lang,_ = langid.classify(pre_text2)
-
-                        lang = pre_text2 and wtl.predict_lang(pre_text2) # seconds faster than langid
-                        lang = lang if not lang == "CANT_PREDICT" else title_lang
-                        if lang in ["zh","ko","ja","vi"]:
-                            s.append(text2)
-                        else:
-                            if len(pre_text2.split()) > 5:
-                                s.append(text2)
-                if text and indent_level and not soup.name == 'pre':
-                    pre_text = re.sub(r'\W?\B\W?',"",text.strip())
-                    # lang,_ = langid.classify(pre_text)
-                    
-                    lang = pre_text and wtl.predict_lang(pre_text)
-                    lang = lang if not lang == "CANT_PREDICT" else title_lang
-                    con = False
-                  
-                    if lang in ["zh","ko","ja","vi"]:
-                        con = True
-                    else:
-                        if len(pre_text.split()) > 5:
-                            con = True
-                    if con:
-                        text = re.sub(r'\xa0','',text,flags=re.ASCII|re.M)
-                        s.append(text)
-                        if pretty_print and not soup.name == 'pre':
-                            s.append("\n\n")
-            prettified_html = ''.join(s)
-            return prettified_html
-        prettified_html = decode(best_node.soup)
+        title_lang = wtl.predict_lang( pure_text(soup.title.string) )
+        prettified_html = decode(best_node.soup,title_lang)
         prettified_html = re.sub(r'\n{3,}','\n\n',prettified_html,flags=re.ASCII|re.M)
         text = bs4.BeautifulSoup(prettified_html.rstrip(),"html5lib").text
         text.rstrip()
