@@ -12,9 +12,14 @@ class TestMain(unittest.TestCase):
         extractor = BodyTextExtraction()
         html_content = (data_path / "fsight.html" ).read_text()
         text = extractor.extract(html_content)
-        print(text)
         output = (data_path / "fsight.txt" ).read_text()
-
+        self.assertEqual(output, text)
+    
+    def test_yahoo(self):
+        extractor = BodyTextExtraction()
+        html_content = (data_path / "yahoo.html" ).read_text()
+        text = extractor.extract(html_content)
+        output = (data_path / "yahoo.txt" ).read_text()
         self.assertEqual(output, text)
 
 

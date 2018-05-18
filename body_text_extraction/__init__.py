@@ -8,6 +8,7 @@ import math
 import html5lib
 import sys
 import re
+import langid
 
 __all__ = ["BodyTextExtraction"]
 
@@ -229,9 +230,42 @@ class BodyTextExtraction:
             if len(img.parent.find_all(['p','div'])) == 1:
                 img.parent.decompose()
         self.threshold = Node.threshold
-        text = best_node.soup.text.rstrip()
-        text = re.sub(r'\xa0','',text,flags=re.ASCII|re.M)
-        text = re.sub(r'^[\s\n]+','',text,flags=re.ASCII)
+        soup = best_node.soup
+        def decode(soup,indent_level=2,encoding= bs4.DEFAULT_OUTPUT_ENCODING,formatter="minimal"):
+            s = []
+            pretty_print = True
+            for c in soup:
+                text = None
+                if isinstance(c, bs4.NavigableString):
+                    text = c.output_ready(formatter)
+                elif isinstance(c, bs4.Tag):
+                    text2 = decode(c,indent_level, bs4.DEFAULT_OUTPUT_ENCODING,
+                                    formatter)
+                    lang,_ = langid.classify(text2)
+                    if lang in ["zh","ko","ja","vi"]:
+                        s.append(text2)
+                    else:
+                        if len(text2.split()) > 5:
+                            s.append(text2)
+                if text  and indent_level and not soup.name == 'pre':
+                    lang,_ = langid.classify(text)
+                    con = False
+                    if lang in ["zh","ko","ja","vi"]:
+                        con = True
+                    else:
+                        if len(text.split()) > 5:
+                            con = True
+                    if con:
+                        text = re.sub(r'\xa0','',text,flags=re.ASCII|re.M)
+                        s.append(text)
+                        if pretty_print and not soup.name == 'pre':
+                            s.append("\n\n")
+            prettified_html = ''.join(s)
+            return prettified_html
+        prettified_html = decode(best_node.soup)
+        prettified_html = re.sub(r'\n{3,}','\n\n',prettified_html,flags=re.ASCII|re.M)
+        text = bs4.BeautifulSoup(prettified_html.rstrip(),"html5lib").text
+        text.rstrip()
         return text
 
 def get_unicode_content_from_url(url):
