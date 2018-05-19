@@ -52,7 +52,7 @@ class Node:
     @classmethod
     def _preprocess(cls,node):
         #unwrap tags
-        merging_elements = ["p","br", "li","table","tbody","tr","td","theader","tfooter"]
+        merging_elements = ["p","br","li","table","tbody","tr","td","theader","tfooter"]
         for element in merging_elements:
             tags = node.find_all(element)
             for tag in tags: 
@@ -70,15 +70,22 @@ class Node:
         def _merge_neighboring_navigablestrings(node):
             first_navigablestring = None
             for child in node.children:
-                if type(child) == bs4.element.NavigableString:
+                if type(child) == bs4.element.NavigableString and not isinstance(child, bs4.Comment):
                     if first_navigablestring:
                         first_navigablestring.string += child.string
                         child.string= ""
                     else:
                         first_navigablestring = child
                 elif type(child) == bs4.element.Tag:
-                    first_navigablestring = None
-                    _merge_neighboring_navigablestrings(child)
+                    if child.name == 'span':
+                        if first_navigablestring:
+                            first_navigablestring.string += child.text
+                            child.string= ""
+                        else:
+                            first_navigablestring = bs4.NavigableString(child.text)
+                    else:
+                        first_navigablestring = None
+                        _merge_neighboring_navigablestrings(child)
                 else:
                     first_navigablestring = None
 
@@ -206,7 +213,9 @@ class Node:
         return path
 
 def pure_text(s):
-    text = re.sub(r'\W?\B\W?',"",s.strip())
+    text = s.strip()
+    if len(text) > 1:
+        text = re.sub(r'\W?\B\W?',"",text)
     return text
 
 def predict_lang(s):
@@ -214,16 +223,19 @@ def predict_lang(s):
     lang = s and wtl.predict_lang(s2) # seconds faster than langid
     lang = lang if not lang == "CANT_PREDICT" else None
 
-def decode(soup,title_lang):
+def decode(soup,linebreaks,title_lang):
     s = []
 
     for c in soup:
         text = None
-        if isinstance(c, bs4.NavigableString):
-            text = c.output_ready("minimal")
+        if isinstance(c, bs4.NavigableString) and not isinstance(c, bs4.Comment):
+            # text = c.output_ready("minimal")
+            text = c.string if linebreaks else  c.output_ready("minimal") #news from yahoo with single line html
             text = re.sub(r'^\s+$','',text,flags=re.ASCII|re.M)
         elif isinstance(c, bs4.Tag):
-            text2 = decode(c,title_lang)
+            # linebreaks = c.text.count('\n')
+            text2 = decode(c,linebreaks,title_lang)
+            # text2 = re.sub(r'^\s+$','',text2,flags=re.ASCII|re.M)
             if text2:
                 pre_text2 = pure_text(text2)
                 lang = predict_lang(pre_text2) or title_lang
@@ -266,7 +278,6 @@ class BodyTextExtraction:
         best_score = float("-inf")
         best_node = None
         for node in tree.enumerate_dfs():
-
             if node.is_navigable_string():    continue
             if not node.is_content:           continue
             if not node.soup.name in ["div","p","article"]: continue
@@ -281,12 +292,14 @@ class BodyTextExtraction:
             if len(img.parent.find_all(['p','div'])) == 1:
                 img.parent.decompose()
         self.threshold = Node.threshold
-        
         title_lang = wtl.predict_lang( pure_text(soup.title.string) )
-        prettified_html = decode(best_node.soup,title_lang)
+        linebreaks = best_node.soup.text.count('\n')
+        prettified_html = decode(best_node.soup,linebreaks,title_lang)
+        prettified_html = re.sub(r'^\s+','',prettified_html,flags=re.ASCII)
+        prettified_html = re.sub(r'^\n+','',prettified_html,flags=re.ASCII)
         prettified_html = re.sub(r'\n{3,}','\n\n',prettified_html,flags=re.ASCII|re.M)
-        text = bs4.BeautifulSoup(prettified_html.rstrip(),"html5lib").text
-        text.rstrip()
+        # text = bs4.BeautifulSoup(prettified_html.rstrip(),"html5lib").text
+        text = prettified_html.rstrip()
         return text
 
 def get_unicode_content_from_url(url):
