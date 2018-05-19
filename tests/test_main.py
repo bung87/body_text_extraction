@@ -28,7 +28,7 @@ class TestMain(unittest.TestCase):
         extractor = BodyTextExtraction()
         html_content = (data_path / "sina.raw" ).read_text()
         text = extractor.extract(html_content)
-        # print(text)
+        print(text)
         output = (data_path / "sina.txt" ).read_text()
         self.assertEqual(output, text)
 

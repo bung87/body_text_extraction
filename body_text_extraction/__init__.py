@@ -77,12 +77,14 @@ class Node:
                     else:
                         first_navigablestring = child
                 elif type(child) == bs4.element.Tag:
-                    if child.name == 'span':
+                    if child.name in ['span','strong','b','small','em','sub','sup']:
                         if first_navigablestring:
                             first_navigablestring.string += child.text
                             child.string= ""
                         else:
-                            first_navigablestring = bs4.NavigableString(child.text)
+                            first_navigablestring = None
+                            _merge_neighboring_navigablestrings(child)
+                            # first_navigablestring = bs4.NavigableString(child.text)
                     else:
                         first_navigablestring = None
                         _merge_neighboring_navigablestrings(child)
@@ -298,6 +300,7 @@ class BodyTextExtraction:
         prettified_html = decode(best_node.soup,linebreaks,title_lang)
         prettified_html = re.sub(r'^\s+','',prettified_html,flags=re.ASCII)
         prettified_html = re.sub(r'^\n+','',prettified_html,flags=re.ASCII)
+        prettified_html = re.sub(r'(?<!\n)\n(?=\s+)','\n\n',prettified_html)
         prettified_html = re.sub(r'\n{3,}','\n\n',prettified_html,flags=re.ASCII|re.M)
         # text = bs4.BeautifulSoup(prettified_html.rstrip(),"html5lib").text
         text = prettified_html.rstrip()
