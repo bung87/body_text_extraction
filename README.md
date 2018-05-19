@@ -10,3 +10,6 @@ bte = BodyTextExtraction()
 text = bte.extract( html )  
 ```
 
+## Testing  
+
+`python -m unittest discover -s tests -v`  

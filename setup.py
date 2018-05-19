@@ -23,11 +23,11 @@ setup(
     keywords='html content',
     packages=find_packages(exclude=['bin','tests']),
     install_requires=[
-        'beautifulsoup4==4.3.2',
-        'html5lib==0.99999',
+        'beautifulsoup4>=4.6',
+        'html5lib>=1.0.1',
         'whatthelang>=1.0.1'
         ],
-    test_suite='tests.main_test.suite'
+    test_suite='tests.test_main.suite'
 
 )
 

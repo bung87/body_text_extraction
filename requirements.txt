@@ -1,4 +1,4 @@
-beautifulsoup4==4.3.2
-html5lib==0.99999
-six==1.9.0
+beautifulsoup4>=4.6
+html5lib>=1.0.1
+# six==1.11.0
 whatthelang>=1.0.1
