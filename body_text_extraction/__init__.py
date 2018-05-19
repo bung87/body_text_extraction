@@ -222,6 +222,7 @@ def predict_lang(s):
     s2 = pure_text(s)
     lang = s and wtl.predict_lang(s2) # seconds faster than langid
     lang = lang if not lang == "CANT_PREDICT" else None
+    return lang
 
 def decode(soup,linebreaks,title_lang):
     s = []
